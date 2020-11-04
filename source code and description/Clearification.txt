@@ -1,0 +1,5 @@
+1.The framework of this simulator was written by academics in Cambridge univeristy engineering department
+and this simulator is delivered as a coursework to first year engineering students.
+
+2.I wrote some key algorithms in the simulator such as the numerical simulation method, automatic landing, 
+and orbit insertion.
