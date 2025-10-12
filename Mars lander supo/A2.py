@@ -73,7 +73,7 @@ print(f"r0 = {_rn:.3f} m, |v0| = {v0_mag:.6f} m/s")
 # -----------------------------------------------------------------
 
 # ---------------- Simulation grid ----------------
-t_max = 100000
+t_max = 10000
 # Note: dt controls *output sampling* for reference solver; internal step is adaptive.
 dt = 1.0
 # t=0..t_max-dt (N points). If you want an inclusive grid, use np.linspace and adjust.
