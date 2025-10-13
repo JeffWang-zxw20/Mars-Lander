@@ -88,7 +88,7 @@ void autopilot (void)
 		turn_angle;
 
 		mass_of_lander_current = UNLOADED_LANDER_MASS + (fuel*FUEL_CAPACITY*FUEL_DENSITY);//FUEL IS the proportion of fuel remaining 
-		delta_diff_dec = GRAVITY * MARS_MASS * mass_of_lander_current * (1 / position.abs2());
+		delta_diff_dec = GRAVITY * MARS_MASS * mass_of_lander_current * (1 / position.abs2()); // Current gravity force of the lander
 		altitude_auto = position.abs() - MARS_RADIUS;
 		target_rate = -(0.5 + Kh * altitude_auto);
 		r_rate = velocity * position.norm();
@@ -192,6 +192,15 @@ void autopilot (void)
 		outfile.open("test2.txt", ios_base::app);
 		outfile << target_rate << ' '<< r_rate << ' '<< altitude_auto <<' '<< x() <<endl;
 		*/
+
+
+		bool Exp1_Q3_key = true;  //if set true, we are testing 2P6  Exp1 Q3
+		if (Exp1_Q3_key == true)
+		{
+			throttle = 1.0001*(delta_diff_dec / MAX_THRUST);
+		}
+
+
 }
 
 void numerical_dynamics (void)
@@ -208,7 +217,7 @@ void numerical_dynamics (void)
 	F_drag_boat = (0.5 * atm_density * DRAG_COEF_LANDER * area_boat * velocity.abs2() * velocity.norm()); //'-' as the force is 
 	F_drag_para = (0.5 * atm_density * DRAG_COEF_CHUTE * area_para * velocity.abs2() * velocity.norm());//opposite to direc of v
 	F_upt = thrust_wrt_world(); 
-	//fuel -= delta_t * (FUEL_RATE_AT_MAX_THRUST*throttle) / FUEL_CAPACITY;
+	fuel -= delta_t * (FUEL_RATE_AT_MAX_THRUST*throttle) / FUEL_CAPACITY;
 	//so change FUEL_RATE_AT_MAX_THRUST can change how quick the fuel runs out 
 	mass_curr = UNLOADED_LANDER_MASS + (fuel*FUEL_CAPACITY*FUEL_DENSITY);//FUEL IS the proportion of fuel remaining 
 	Gra_Force = GRAVITY * MARS_MASS * mass_curr * (1 / position.abs2()) * position.norm();

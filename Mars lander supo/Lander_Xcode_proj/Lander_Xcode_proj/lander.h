@@ -1,4 +1,4 @@
-﻿// Mars lander simulator
+// Mars lander simulator
 // Version 1.10
 // Header file
 // Gabor Csanyi and Andrew Gee, August 2017
