@@ -1,7 +1,7 @@
-// Mars lander simulator
-// Version 1.11
+﻿// Mars lander simulator
+// Version 1.10
 // Header file
-// Gabor Csanyi and Andrew Gee, August 2019
+// Gabor Csanyi and Andrew Gee, August 2017
 
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation, to make use of it
@@ -64,12 +64,13 @@
 #define GRAVITY 6.673E-11 // (m^3/kg/s^2)
 #define MARS_DAY 88642.65 // (s)
 #define EXOSPHERE 200000.0 // (m)
+#define target_ori_alt 100000.0 //(m)
 
 // Lander constants
 #define LANDER_SIZE 1.0 // (m)
 #define UNLOADED_LANDER_MASS 100.0 // (kg)
 #define FUEL_CAPACITY 100.0 // (l)
-#define FUEL_RATE_AT_MAX_THRUST 0.5 // (l/s)
+#define FUEL_RATE_AT_MAX_THRUST 0.0// (l/s) // setting it to zero gives you effectively inﬁnite fuel
 #define FUEL_DENSITY 1.0 // (kg/l)
 // MAX_THRUST, as defined below, is 1.5 * weight of fully loaded lander at surface
 #define MAX_THRUST (1.5 * (FUEL_DENSITY*FUEL_CAPACITY+UNLOADED_LANDER_MASS) * (GRAVITY*MARS_MASS/(MARS_RADIUS*MARS_RADIUS))) // (N)
@@ -134,6 +135,8 @@ struct closeup_coords_t {
 
 // Enumerated data type for parachute status
 enum parachute_status_t { NOT_DEPLOYED = 0, DEPLOYED = 1, LOST = 2 };
+enum simul_algorithm { Verlet = 0, Euler = 1};
+enum state_recorder {Wait = 0, Start = 1};
 
 #ifdef DECLARE_GLOBAL_VARIABLES // actual declarations of all global variables for lander_graphics.cpp
 
@@ -167,9 +170,13 @@ unsigned long long time_program_started;
 // Lander state - the visualization routines use velocity_from_positions, so not sensitive to 
 // any errors in the velocity update in numerical_dynamics
 vector3d position, orientation, velocity, velocity_from_positions, last_position;
-double climb_speed, ground_speed, altitude, throttle, fuel;
-bool stabilized_attitude, autopilot_enabled, parachute_lost;
+double climb_speed, ground_speed, altitude, throttle, fuel, counter_global;
+bool stabilized_attitude, autopilot_enabled, parachute_lost, stabilized_attitude_ground_speed, stabilized_gravity_turn, throttle_auto_ascent;
+bool gravity_turn_start_key;
+bool landing_start_key;
 parachute_status_t parachute_status;
+simul_algorithm algo;
+state_recorder state_name;
 int stabilized_attitude_angle;
 
 // Orbital and closeup view parameters
@@ -185,12 +192,14 @@ GLfloat straight_on[] = { 0.0, 0.0, 1.0, 0.0 };
 
 #else // extern declarations of those global variables used in lander.cpp
 
-extern bool stabilized_attitude, autopilot_enabled;
-extern double delta_t, simulation_time, throttle, fuel;
+extern bool stabilized_attitude, autopilot_enabled, stabilized_attitude_ground_speed, stabilized_gravity_turn, throttle_auto_ascent, gravity_turn_start_key, landing_start_key;
+extern double delta_t, simulation_time, throttle, fuel, counter_global;
 extern unsigned short scenario;
 extern string scenario_description[];
 extern vector3d position, orientation, velocity;
 extern parachute_status_t parachute_status;
+extern simul_algorithm algo;  
+extern state_recorder state_name;
 extern int stabilized_attitude_angle;
 
 #endif
@@ -232,6 +241,9 @@ void refresh_all_subwindows (void);
 bool safe_to_deploy_parachute (void);
 void update_visualization (void);
 void attitude_stabilization (void);
+void attitude_stabilization_ground_speed(void);
+void attitude_stabilization_gravity_turn(double gravity_turn_angle);
+void throttle_control_autopilot(double angles);
 vector3d thrust_wrt_world (void);
 void autopilot (void);
 void numerical_dynamics (void);

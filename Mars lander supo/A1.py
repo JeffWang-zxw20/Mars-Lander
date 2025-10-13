@@ -11,7 +11,7 @@ v = 1
 
 # simulation time, timestep and time
 t_max = 1000
-dt = 1.999995 # For example, if you take m = k= v0 = 1 
+dt = 2.5 # For example, if you take m = k= v0 = 1 
             # and calculate the trajectory from t = 0
             # to t = 1000, you should find that the Verlet integrator 
             # is stable for ∆t = 1 but not for ∆t = 2.

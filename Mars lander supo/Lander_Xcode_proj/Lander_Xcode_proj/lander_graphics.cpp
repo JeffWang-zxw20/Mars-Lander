@@ -1,7 +1,7 @@
 // Mars lander simulator
-// Version 1.11
+// Version 1.10
 // Graphics functions
-// Gabor Csanyi and Andrew Gee, August 2019
+// Gabor Csanyi and Andrew Gee, August 2017
 
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation, to make use of it
@@ -181,9 +181,7 @@ void normalize_quat (quat_t &q)
   // Normalizes a quaternion
 {
   double mag;
-  // mag is exactly sqrt(q.v.x*q.v.x + q.v.y*q.v.y + q.v.z*q.v.z + q.s*q.s) and approximately (1.0 + q.v.x*q.v.x + q.v.y*q.v.y + q.v.z*q.v.z + q.s*q.s)/2.0
-  // when the quaternion is already nearly normalized. Avoiding the square root speeds up the calculation.
-  mag = (1.0 + q.v.x*q.v.x + q.v.y*q.v.y + q.v.z*q.v.z + q.s*q.s)/2.0;
+  mag = (q.v.x*q.v.x + q.v.y*q.v.y + q.v.z*q.v.z + q.s*q.s);
   if (mag > 0.0) {
     q.v.x /= mag; q.v.y /= mag;
     q.v.z /= mag; q.s /= mag;
@@ -687,7 +685,10 @@ void draw_instrument_window (void)
 
   // Draw auto-pilot lamp
   draw_indicator_lamp (view_width+GAP-400, INSTRUMENT_HEIGHT-18, "Auto-pilot off", "Auto-pilot on", autopilot_enabled);
-
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  draw_indicator_lamp(view_width + GAP - 250, INSTRUMENT_HEIGHT - 18, "Orbit_inje_F=OFF", "Orbit_inje_ON", gravity_turn_start_key);
+  // Draw the landing start key	
+  draw_indicator_lamp(view_width + GAP - 1, INSTRUMENT_HEIGHT - 18, "Landing_OFF","Landing_ON", landing_start_key);
   // Draw climb rate meter
   if (climb_speed >= 0.0) draw_dial (view_width+GAP-150, INSTRUMENT_HEIGHT/2, landed ? 0.0 : climb_speed, "Climb rate", "m/s");
   else draw_dial (view_width+GAP-150, INSTRUMENT_HEIGHT/2, landed ? 0.0 : -climb_speed, "Descent rate", "m/s");
@@ -1074,7 +1075,7 @@ void update_closeup_coords (void)
   // Direction from surface to lander (radial) - this must map to the world y-axis
   s = position.norm();
 
-  // Direction of tangential velocity - this must map to the world x-axis
+  // Direction of tangential velocity - this must map to the world x-axis  jjjjjjjjjjj
   tv = velocity_from_positions - (velocity_from_positions*s)*s;
   if (tv.abs() < SMALL_NUM) // vertical motion only, use last recorded tangential velocity
     tv = closeup_coords.backwards ? (closeup_coords.right*s)*s - closeup_coords.right : closeup_coords.right - (closeup_coords.right*s)*s; 
@@ -1527,7 +1528,7 @@ void update_visualization (void)
   simulation_time += delta_t;
   altitude = position.abs() - MARS_RADIUS;
 
-  // Use average of current and previous positions when calculating climb and ground speeds
+  // Use average of current and previous positions when calculating climb and ground speeds              
   av_p = (position + last_position).norm();
   if (delta_t != 0.0) velocity_from_positions = (position - last_position)/delta_t;
   else velocity_from_positions = vector3d(0.0, 0.0, 0.0);
@@ -1581,6 +1582,68 @@ void update_visualization (void)
   refresh_all_subwindows();
 }
 
+
+
+
+void throttle_control_autopilot(double angles)  //angles is in radian
+{
+	//now let's think about how to control the engine properly
+		//Assuming that in this case, the lander's altitude is lower than the target orbital altitude
+	double Kh_a = 0.0000008;		  //ascent rate coeff
+	double altitude_diff; // small h, the difference in altitude between the Target altidude and CURRENT(changing) altidude	
+	double target_ascent_rate; // the ascent rate will decrease linearly, reaching almost zero(0.01) when the satellite reaches the target altitude 
+	altitude_diff = abs(target_ori_alt - position.abs()); //double target_ori_alt; //targer altitude, H
+	target_ascent_rate = 0.01 + Kh_a * (altitude_diff);
+
+	double error_a = target_ascent_rate - velocity * (position.norm()); /*this error will be negative if the lander is ascenting too quickly(real rate is larger than target rate, hence nega)
+	// the error will be negative if the lander is ascently too slow (target > real)
+	// we don't need to do anything when error_a is +ve, LET GRAVITY DO THE WORK*/
+	double Kp_a = 1.5;  //Here, similar to descent, we introduce a kp
+	double Pout_a = Kp_a * error_a;/*//Note that even when error_a is zero, we still need to consider gravity and orbital rotation
+	// treat the lander itself as a frame of reference
+	// except for the thrust, it will also experience a downwards gravity and upwards centrifugrial force*/
+	double mass_of_lander_current = UNLOADED_LANDER_MASS + (fuel*FUEL_CAPACITY*FUEL_DENSITY);
+	double gravity_ascent = GRAVITY * MARS_MASS * mass_of_lander_current * (1 / position.abs2());
+	double centrif_force_magnitude = mass_of_lander_current * velocity.abs2() / position.abs();
+	vector3d centrif_force = (position.norm() ^ velocity.norm()) ^ velocity.norm() *centrif_force_magnitude;
+	vector3d gravity_ascent_in3d = gravity_ascent * position.norm();
+
+	//now we can find the delta for the ascent 
+	vector3d Net_force_in3d = (gravity_ascent_in3d + centrif_force);
+	//I made a dangerous assumption here:I assumed that delta_ascent will always pointing towards the centre of the Mars
+	// But i can also add an if else to determine its direction
+	double delta_ascent = Net_force_in3d * position.norm();
+
+	double Force_needed_in_vertial_direc;
+
+	if (Pout_a <= (-delta_ascent))
+	{
+		Force_needed_in_vertial_direc = 0.0;
+	}
+
+	else
+	{
+		Force_needed_in_vertial_direc = delta_ascent + Pout_a;
+	}
+	//vector3d throttle_in3d_direc_uni; // this is done on attitude control, containing the direction of throttle,a unit vector
+	// Max_throttle_force_at_an_angle shows the max_force in VERTICAL direction can be delivered at one specific angle.
+	//double Max_throttle_force_at_an_angle = (MAX_THRUST * throttle_in3d_direc_uni) * position.norm();
+	double Max_throttle_force_at_an_angle = MAX_THRUST * cos(angles); //angles is the angle between vertical and the thrust direction
+	double R_throttle = Force_needed_in_vertial_direc / Max_throttle_force_at_an_angle;
+
+	if (R_throttle >= 1.0)
+	{
+		throttle = 1;   //Turn all the power on
+	}
+	else
+	{
+		throttle = R_throttle;
+	}
+	//vertical force needed to push the satellite into the orbit- we find it 
+}
+
+
+
 void attitude_stabilization (void)
   // Three-axis stabilization to ensure the lander's base is always pointing downwards 
 {
@@ -1589,7 +1652,7 @@ void attitude_stabilization (void)
 
   up = position.norm(); // this is the direction we want the lander's nose to point in
 
-  // !!!!!!!!!!!!! HINT TO STUDENTS ATTEMPTING THE EXTENSION EXERCISES !!!!!!!!!!!!!!
+  // !!!!!!!!!!!!! HINT TO STUDENTS ATTEMPTING THE EXTENSION EXERCISES !!!!!!!!!!!!!!THANK YOU FOR YOUR HINT!!!
   // For any-angle attitude control, we just need to set "up" to something different,
   // and leave the remainder of this function unchanged. For example, suppose we want
   // the attitude to be stabilized at stabilized_attitude_angle to the vertical in the
@@ -1610,6 +1673,61 @@ void attitude_stabilization (void)
   m[12] = 0.0; m[13] = 0.0; m[14] = 0.0; m[15] = 1.0;
   // Decomponse into xyz Euler angles
   orientation = matrix_to_xyz_euler(m);
+}
+
+
+void attitude_stabilization_ground_speed(void)
+// Three-axis stabilization to ensure the lander's base is always pointing downwards 
+{
+	vector3d up, left, out;
+	double m[16];
+
+	up = -velocity.norm(); // this is the direction we want the lander's nose to point in
+
+	left.x = -up.y; left.y = up.x; left.z = 0.0;
+	if (left.abs() < SMALL_NUM) { left.x = -up.z; left.y = 0.0; left.z = up.x; }
+	left = left.norm();
+	out = left ^ up;
+	// Construct modelling matrix (rotation only) from these three vectors
+	m[0] = out.x; m[1] = out.y; m[2] = out.z; m[3] = 0.0;
+	m[4] = left.x; m[5] = left.y; m[6] = left.z; m[7] = 0.0;
+	m[8] = up.x; m[9] = up.y; m[10] = up.z; m[11] = 0.0;
+	m[12] = 0.0; m[13] = 0.0; m[14] = 0.0; m[15] = 1.0;
+	// Decomponse into xyz Euler angles
+	orientation = matrix_to_xyz_euler(m);
+}
+
+
+void attitude_stabilization_gravity_turn (double gravity_turn_angle)
+// I hope this will work 
+{
+	vector3d up, left, out, turn_axis, up_pre;
+	//double gravity_turn_angle;
+	double m[16];
+	//rotate "up" by stabilized_attitude_angle degrees around
+	// an axis perpendicular to the plane of the close-up view. This axis is given by the
+	// vector product of "up"and "closeup_coords.right".
+	//I implemented the following codes based on this Youtube video
+	//https://www.youtube.com/watch?v=dttFiVn0rvc
+
+	up_pre = position.norm();
+	turn_axis = up_pre ^ closeup_coords.right;
+	//gravity_turn_angle = 1;
+	//every time this function is called, the lander will be turned by a small angle 
+	up = up_pre*cos(gravity_turn_angle) + (up_pre*turn_axis)*turn_axis*(1-cos(gravity_turn_angle))
+		 + (turn_axis^up_pre)*sin(gravity_turn_angle); 
+
+	left.x = -up.y; left.y = up.x; left.z = 0.0;
+	if (left.abs() < SMALL_NUM) { left.x = -up.z; left.y = 0.0; left.z = up.x; }
+	left = left.norm();
+	out = left ^ up;
+	// Construct modelling matrix (rotation only) from these three vectors
+	m[0] = out.x; m[1] = out.y; m[2] = out.z; m[3] = 0.0;
+	m[4] = left.x; m[5] = left.y; m[6] = left.z; m[7] = 0.0;
+	m[8] = up.x; m[9] = up.y; m[10] = up.z; m[11] = 0.0;
+	m[12] = 0.0; m[13] = 0.0; m[14] = 0.0; m[15] = 1.0;
+	// Decomponse into xyz Euler angles
+	orientation = matrix_to_xyz_euler(m);
 }
 
 vector3d thrust_wrt_world (void)
@@ -1693,6 +1811,10 @@ void reset_simulation (void)
   stabilized_attitude_angle = 0;
   throttle = 0.0;
   fuel = 1.0;
+  counter_global = 0.0;//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////
+  landing_start_key = false;
+  gravity_turn_start_key = false;
 
   // Restore initial lander state
   initialize_simulation();
@@ -1719,7 +1841,6 @@ void reset_simulation (void)
   throttle_control = (short)(throttle*THROTTLE_GRANULARITY + 0.5);
   simulation_time = 0.0;  
   track.n = 0;
-  track.p = 0;
   parachute_lost = false;
   closeup_coords.initialized = false;
   closeup_coords.backwards = false;
@@ -1934,7 +2055,7 @@ void glut_special (int key, int x, int y)
   if (paused || landed) refresh_all_subwindows();
 }
 
-void glut_key (unsigned char k, int x, int y)
+void glut_key (unsigned char k, int x, int y) //////////////////////////////
   // Callback for key presses in all windows
 {
   switch(k) {
@@ -2010,6 +2131,18 @@ void glut_key (unsigned char k, int x, int y)
     if (paused) refresh_all_subwindows();
     break;
 
+  case 'g': case 'G':
+	//g or G --- gravity turn key
+	  gravity_turn_start_key = !gravity_turn_start_key;
+	  //gravity_turn_start_key = true;
+	  break;
+
+  case 'd': case 'D':
+	  //g or G --- gravity turn key
+	  landing_start_key = !landing_start_key;
+	  //landing_start_key = true;
+	  break;
+
   case 'h': case 'H':
     // h or H - help
     if (help) {
@@ -2060,6 +2193,18 @@ void glut_key (unsigned char k, int x, int y)
     paused = true;
     break;
 
+  case 'x': case 'X':  
+	//rotate key
+	orientation.x += 1.0;
+
+  case 'y': case 'Y':
+	  //rotate key
+	orientation.y += 1.0;
+
+  case 'z': case 'Z':
+	  //rotate key
+   orientation.z += 1.0;
+
   }
 }
 
@@ -2075,7 +2220,7 @@ int main (int argc, char* argv[])
   glutInitWindowSize(PREFERRED_WIDTH, PREFERRED_HEIGHT);
   view_width = (PREFERRED_WIDTH - 4*GAP)/2;
   view_height = (PREFERRED_HEIGHT - INSTRUMENT_HEIGHT - 4*GAP);
-  main_window = glutCreateWindow("Mars Lander (Gabor Csanyi and Andrew Gee, August 2019)");
+  main_window = glutCreateWindow("Mars Lander (Gabor Csanyi and Andrew Gee, August 2017)");
   glDrawBuffer(GL_BACK);
   glLineWidth(2.0);
   glDisable(GL_LIGHTING);
