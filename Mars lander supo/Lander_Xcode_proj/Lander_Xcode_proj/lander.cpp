@@ -1,4 +1,4 @@
-﻿// Mars lander simulator
+// Mars lander simulator
 // Version 1.10
 // Mechanical simulation functions
 // Gabor Csanyi and Andrew Gee, August 2017
@@ -197,7 +197,7 @@ void autopilot (void)
 		bool Exp1_Q3_key = true;  //if set true, we are testing 2P6  Exp1 Q3
 		if (Exp1_Q3_key == true)
 		{
-			throttle = 1.0001*(delta_diff_dec / MAX_THRUST);
+			throttle = 1.000000*(delta_diff_dec / MAX_THRUST);
 		}
 
 
