@@ -199,6 +199,39 @@ void autopilot (void)
 		{
 			throttle = 1.000000*(delta_diff_dec / MAX_THRUST);
 		}
+    
+    
+    
+    
+        bool Exp2_Q7_key = true; //if set true, we are testing 2P6  Exp2 Q7
+        double r_exp2_Q7 = 510.0 +  MARS_RADIUS; // meters, target stabilising altitude
+        double e_exp_Q7 = r_exp2_Q7 - position.abs();
+        static double previous_e_exp_Q7;
+        static bool first_time_run_Exp2_Q7 = true;
+        if (first_time_run_Exp2_Q7)
+        {
+            previous_e_exp_Q7 = e_exp_Q7;
+            first_time_run_Exp2_Q7 = false;
+        }
+
+        double kp_exp2_Q7 = 0.01;
+        double kd_exp2_Q7 = 0.00;
+        
+        double de_exp_Q7 = (e_exp_Q7 - previous_e_exp_Q7) / delta_t;
+        if (Exp2_Q7_key == true)
+        {
+            double u_ss = delta_diff_dec / MAX_THRUST;
+            throttle = u_ss + kp_exp2_Q7 * e_exp_Q7 + kd_exp2_Q7 * de_exp_Q7;
+            if (throttle > 1.0)
+            {
+                throttle = 1.0;
+            }
+            if (throttle < 0.0)
+            {
+                throttle = 0.0;
+            }
+        }
+        previous_e_exp_Q7 = e_exp_Q7;
 
 
 }
@@ -249,7 +282,9 @@ void numerical_dynamics (void)
 	//Verlet algorithm
 	else 
 	{
-		static vector3d previous_position;
+		static vector3d previous_position;  // static inside a function means: create this variable once, keep                                          its value between calls.
+                                            //It does not get re-created on every iteration of the loop. It only gets constructed once (initialised     to zero here) and then keeps whatever you assign to it later.
+                                            //   So previous_position is not being “thrown away” each time — it persists.
 		vector3d new_position;
 
 		if (simulation_time == 0.0)
@@ -317,13 +352,14 @@ void initialize_simulation (void)
     autopilot_enabled = true;
 	algo = Verlet;
 	state_name = Wait;
-	gravity_turn_start_key == false;
-	landing_start_key == false;
+	gravity_turn_start_key = false;
+	landing_start_key = false;
     break;
 
   case 1:
     // a descent from rest at 10km altitude ---- PRESS 'D' or 'd' to land
-    position = vector3d(0.0, -(MARS_RADIUS + 10000.0), 0.0);
+//    position = vector3d(0.0, -(MARS_RADIUS + 10000.0), 0.0);
+    position = vector3d(0.0, -(MARS_RADIUS + 500.0), 0.0);
     velocity = vector3d(0.0, 0.0, 0.0);
     orientation = vector3d(0.0, 0.0, 90.0);
     delta_t = 0.1;
@@ -332,8 +368,8 @@ void initialize_simulation (void)
     autopilot_enabled = true;
 	algo = Verlet;
 	state_name = Wait;
-	gravity_turn_start_key == false;
-	landing_start_key == true;
+	gravity_turn_start_key = false;
+	landing_start_key = false;
     break;
 
   case 2:
@@ -347,8 +383,8 @@ void initialize_simulation (void)
     autopilot_enabled = true;
 	algo = Verlet;
 	state_name = Wait;
-	gravity_turn_start_key == false;
-	landing_start_key == false;
+	gravity_turn_start_key = false;
+	landing_start_key = false;
     break;
 
   case 3: 
@@ -362,8 +398,8 @@ void initialize_simulation (void)
     autopilot_enabled = true;
 	algo = Verlet;
 	state_name = Wait;
-	gravity_turn_start_key == false;
-	landing_start_key == false;
+	gravity_turn_start_key = false;
+	landing_start_key = false;
     break;
 
   case 4:
@@ -377,8 +413,8 @@ void initialize_simulation (void)
     autopilot_enabled = true;
 	algo = Verlet;
 	state_name = Wait;
-	gravity_turn_start_key == false;
-	landing_start_key == false;
+	gravity_turn_start_key = false;
+	landing_start_key = false;
     break;
 
   case 5:
@@ -392,8 +428,8 @@ void initialize_simulation (void)
     autopilot_enabled = true;
 	algo = Verlet;
 	state_name = Wait;
-	gravity_turn_start_key == false;
-	landing_start_key == false;
+	gravity_turn_start_key = false;
+	landing_start_key = false;
     break;
 
   case 6:
@@ -411,8 +447,8 @@ void initialize_simulation (void)
 	algo = Verlet;
     autopilot_enabled = true;
 	state_name = Wait;
-	gravity_turn_start_key == false;
-	landing_start_key == false;
+	gravity_turn_start_key = false;
+	landing_start_key = false;
     break;
 
   case 7:
@@ -426,8 +462,8 @@ void initialize_simulation (void)
 	algo = Verlet;
     autopilot_enabled = false;
 	state_name = Wait;
-	gravity_turn_start_key == false;
-	landing_start_key == false;
+	gravity_turn_start_key = false;
+	landing_start_key = false;
     break;
 
   case 8:
@@ -441,8 +477,8 @@ void initialize_simulation (void)
     autopilot_enabled = false;
 	algo = Euler;
 	state_name = Wait;
-	gravity_turn_start_key == false;
-	landing_start_key == false;
+	gravity_turn_start_key = false;
+	landing_start_key = false;
     break;
 
   case 9:
@@ -456,8 +492,8 @@ void initialize_simulation (void)
     autopilot_enabled = true;
 	algo = Verlet;
 	state_name = Wait;
-	gravity_turn_start_key == true;
-	landing_start_key == false;
+	gravity_turn_start_key = true;
+	landing_start_key = false;
     break;
   }
 }
