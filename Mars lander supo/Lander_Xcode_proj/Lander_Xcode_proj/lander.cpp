@@ -204,7 +204,8 @@ void autopilot (void)
     
     
         bool Exp2_Q7_key = true; //if set true, we are testing 2P6  Exp2 Q7
-        double r_exp2_Q7 = 510.0 +  MARS_RADIUS; // meters, target stabilising altitude
+                                 // Also works for Exp4 Q5 and Exp3
+        double r_exp2_Q7 = 500.0 +  MARS_RADIUS; // meters, target stabilising altitude
         double e_exp_Q7 = r_exp2_Q7 - position.abs();
         static double previous_e_exp_Q7;
         static bool first_time_run_Exp2_Q7 = true;
@@ -214,8 +215,23 @@ void autopilot (void)
             first_time_run_Exp2_Q7 = false;
         }
 
-        double kp_exp2_Q7 = 0.01;
-        double kd_exp2_Q7 = 0.00;
+        // Case1: Exp4 Q7 (a), no lag, just delay
+        // Aim:find max delay can tolerate: should be 1 sec.
+        //        double kp_exp2_Q7 = 0.091;
+        //        double kd_exp2_Q7 = 2.0*kp_exp2_Q7;
+    
+        // Case2: Exp4 Q7 (b), no delay, just lag,
+        // Aim:find minimum Td. Kp should be arbitary.
+//        double kp_exp2_Q7 = 1000.091; // Should be any kp, since gain margin is infi!!
+//        double Td = 1.1;  //minimum Td for stability is 1.0, If <1.0, should be unstable
+//        double kd_exp2_Q7 = Td*kp_exp2_Q7;
+//    
+    
+        // Case3: Exp4 Q7 (c), delay + lag, Td set to 2.0
+        // Aim:find max delay can tolerate, should be 0.3768
+        double kp_exp2_Q7 = 0.091; // Should be any kp, since gain margin is infi!!
+        double Td = 2.0;  //minimum Td for stability is 1.0, If <1.0, should be unstable
+        double kd_exp2_Q7 = Td*kp_exp2_Q7;
         
         double de_exp_Q7 = (e_exp_Q7 - previous_e_exp_Q7) / delta_t;
         if (Exp2_Q7_key == true)
@@ -359,10 +375,11 @@ void initialize_simulation (void)
   case 1:
     // a descent from rest at 10km altitude ---- PRESS 'D' or 'd' to land
 //    position = vector3d(0.0, -(MARS_RADIUS + 10000.0), 0.0);
-    position = vector3d(0.0, -(MARS_RADIUS + 500.0), 0.0);
+   // This is the case we use in the examples papers in 2P6
+    position = vector3d(0.0, -(MARS_RADIUS + 700.0), 0.0);
     velocity = vector3d(0.0, 0.0, 0.0);
     orientation = vector3d(0.0, 0.0, 90.0);
-    delta_t = 0.1;
+    delta_t = 0.01;
     parachute_status = NOT_DEPLOYED;
     stabilized_attitude = true;
     autopilot_enabled = true;
